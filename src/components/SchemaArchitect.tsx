@@ -23,48 +23,22 @@ export const SchemaArchitect: React.FC = () => {
     setTimeout(() => setCopiedRlsSql(false), 2000);
   };
 
-  const SSR_CLIENT_CODE = `import { createServerClient, type CookieOptions } from '@supabase/ssr';
+  const SSR_CLIENT_CODE = `import { createBrowserClient } from '@supabase/ssr';
 
 /**
- * Next.js Supabase Server Client Utility (src/lib/supabaseServer.ts)
- * Creates an authenticated Supabase client for Server Components, Server Actions, and Route Handlers.
- * Uses HTTP-only cookies for safe SSR JWT session management.
- * Strictly uses process.env.NEXT_PUBLIC_SUPABASE_URL and process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.
+ * Supabase Client Utility (src/lib/supabase.ts)
+ * Strictly uses import.meta.env.VITE_SUPABASE_URL and import.meta.env.VITE_SUPABASE_ANON_KEY.
  */
 
-export function createClient(cookieStore?: {
-  get: (name: string) => { value: string } | undefined;
-  set?: (name: string, value: string, options: CookieOptions) => void;
-  remove?: (name: string, options: CookieOptions) => void;
-}) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export function createClient() {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    throw new Error('Missing Supabase Environment Variables');
+    throw new Error('Missing Supabase Environment Variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required.');
   }
 
-  return createServerClient(url, anonKey, {
-    cookies: {
-      get(name: string) {
-        return cookieStore?.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        try {
-          cookieStore?.set?.(name, value, options);
-        } catch {
-          // Handled in middleware
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore?.set?.(name, '', { ...options, maxAge: 0 });
-        } catch {
-          // Handled in middleware
-        }
-      },
-    },
-  });
+  return createBrowserClient(url, anonKey);
 }`;
 
   const SERVER_ACTION_CODE = `'use server';

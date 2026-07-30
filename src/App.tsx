@@ -54,7 +54,7 @@ export default function App() {
 
   // Check if Supabase env vars exist
   const isSupabaseConfigured = !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
   );
 
   // Database Models State
@@ -375,7 +375,7 @@ export default function App() {
                 Live Supabase Connection Required
               </p>
               <p className="mt-1 text-zinc-300 leading-relaxed">
-                To connect this live application directly to your Supabase project, add <code className="bg-zinc-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">NEXT_PUBLIC_SUPABASE_URL</code> and <code className="bg-zinc-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to your environment variables.
+                To connect this live application directly to your Supabase project, add <code className="bg-zinc-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">VITE_SUPABASE_URL</code> and <code className="bg-zinc-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">VITE_SUPABASE_ANON_KEY</code> to your environment variables.
               </p>
             </div>
           </div>

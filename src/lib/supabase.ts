@@ -1,9 +1,9 @@
 import { createBrowserClient } from '@supabase/ssr';
 
 /**
- * Supabase Client Utility for Vite application
+ * Vite Supabase Client Utility
  * Strictly uses import.meta.env.VITE_SUPABASE_URL and import.meta.env.VITE_SUPABASE_ANON_KEY.
- * Throws a hard error if environment variables are missing.
+ * Hard-fails with a clear error if environment variables are missing.
  */
 
 export function createClient() {
