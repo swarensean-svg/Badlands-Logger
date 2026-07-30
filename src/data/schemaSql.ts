@@ -3,7 +3,7 @@
  */
 
 export const SUPABASE_SQL_SCHEMA = `-- ============================================================================
--- SUPABASE POSTGRESQL SCHEMA FOR GYM MANAGEMENT & WORKOUT TRACKING APP
+-- MASTER SUPABASE POSTGRESQL SCHEMA FOR GYM MANAGEMENT & WORKOUT TRACKER
 -- ============================================================================
 
 -- 1. EXTENSIONS
@@ -11,48 +11,70 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- 2. ENUM TYPES
-CREATE TYPE user_role AS ENUM ('member', 'coach', 'admin');
-CREATE TYPE scoring_type AS ENUM ('time', 'reps', 'weight', 'rounds_reps', 'completion');
-CREATE TYPE workout_status AS ENUM ('draft', 'published', 'archived');
-CREATE TYPE rx_type AS ENUM ('rx', 'rx_plus', 'scaled');
-CREATE TYPE movement_category AS ENUM ('barbell', 'gymnastics', 'monostructural', 'benchmark_wod', 'mobility');
-CREATE TYPE movement_unit AS ENUM ('lbs', 'kg', 'reps', 'seconds', 'meters', 'calories');
+DO $$ BEGIN
+    CREATE TYPE public.user_role AS ENUM ('member', 'coach', 'admin');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.scoring_type AS ENUM ('time', 'reps', 'weight', 'rounds_reps', 'completion', 'other');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.workout_status AS ENUM ('draft', 'published', 'archived');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.rx_type AS ENUM ('rx', 'rx_plus', 'scaled');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.movement_category AS ENUM ('barbell', 'gymnastics', 'monostructural', 'benchmark_wod', 'mobility');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.movement_unit AS ENUM ('lbs', 'kg', 'reps', 'seconds', 'meters', 'calories');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE public.benchmark_category AS ENUM ('hero', 'girl_wod', 'barbell_max', 'gymnastics', 'custom_gym');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- ============================================================================
 -- 3. TABLES
 -- ============================================================================
 
 -- 3.1 PROFILES (Tied to auth.users)
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
+  first_name TEXT,
+  last_name TEXT,
   full_name TEXT NOT NULL,
   avatar_url TEXT,
-  role user_role NOT NULL DEFAULT 'member',
-  is_public BOOLEAN NOT NULL DEFAULT true, -- Privacy setting: toggle public or private results
-  -- Flexible JSONB column for rapid key-value PR lookups (e.g. Fran time, Back Squat 1RM)
+  role public.user_role NOT NULL DEFAULT 'member'::public.user_role,
+  is_public BOOLEAN NOT NULL DEFAULT true,
   benchmark_prs JSONB NOT NULL DEFAULT '{}'::jsonb,
   barbell_prs JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3.2 TRACKS (Dynamic Workout Tracks e.g. Daily Workout, Turf Circuit, Hidden Planning)
-CREATE TABLE public.tracks (
+-- 3.2 TRACKS
+CREATE TABLE IF NOT EXISTS public.tracks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   description TEXT DEFAULT '',
-  color TEXT NOT NULL DEFAULT '#3B82F6', -- Hex color tag
-  is_hidden BOOLEAN NOT NULL DEFAULT false, -- Hidden from normal members if true
-  is_planning BOOLEAN NOT NULL DEFAULT false, -- Used by coaches for upcoming cycles
+  color TEXT NOT NULL DEFAULT '#3B82F6',
+  is_hidden BOOLEAN NOT NULL DEFAULT false,
+  is_planning BOOLEAN NOT NULL DEFAULT false,
   display_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3.2.1 TRACK PARSING RULES (AI Smart Importer Rules tied to specific Track IDs)
-CREATE TABLE public.track_parsing_rules (
+-- 3.2.1 TRACK PARSING RULES
+CREATE TABLE IF NOT EXISTS public.track_parsing_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE UNIQUE,
   rules TEXT NOT NULL DEFAULT '',
@@ -60,35 +82,51 @@ CREATE TABLE public.track_parsing_rules (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3.3 MOVEMENTS (Library of Exercises & Benchmarks)
-CREATE TABLE public.movements (
+-- 3.3 BENCHMARKS
+CREATE TABLE IF NOT EXISTS public.benchmarks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  category public.benchmark_category NOT NULL DEFAULT 'custom_gym'::public.benchmark_category,
+  description TEXT DEFAULT '',
+  scoring_type public.scoring_type NOT NULL DEFAULT 'time'::public.scoring_type,
+  default_unit public.movement_unit NOT NULL DEFAULT 'lbs'::public.movement_unit,
+  rx_male TEXT,
+  rx_female TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3.4 MOVEMENTS
+CREATE TABLE IF NOT EXISTS public.movements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
   slug TEXT NOT NULL UNIQUE,
-  category movement_category NOT NULL,
-  default_unit movement_unit NOT NULL DEFAULT 'lbs',
+  category public.movement_category NOT NULL,
+  default_unit public.movement_unit NOT NULL DEFAULT 'lbs'::public.movement_unit,
   description TEXT DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3.4 WORKOUTS (Daily Programming per Track & Date)
-CREATE TABLE public.workouts (
+-- 3.5 WORKOUTS
+CREATE TABLE IF NOT EXISTS public.workouts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   track_id UUID NOT NULL REFERENCES public.tracks(id) ON DELETE CASCADE,
   scheduled_date DATE NOT NULL,
   title TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
-  athlete_notes TEXT NOT NULL DEFAULT '', -- Visible to all athletes
-  coaches_notes TEXT NOT NULL DEFAULT '', -- Visible ONLY to Coaches & Admins
-  scoring_type scoring_type NOT NULL DEFAULT 'time',
-  status workout_status NOT NULL DEFAULT 'published',
+  athlete_notes TEXT NOT NULL DEFAULT '',
+  coaches_notes TEXT NOT NULL DEFAULT '',
+  scoring_type public.scoring_type NOT NULL DEFAULT 'time'::public.scoring_type,
+  status public.workout_status NOT NULL DEFAULT 'published'::public.workout_status,
+  is_benchmark BOOLEAN DEFAULT false,
+  benchmark_category public.benchmark_category,
   created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3.5 WORKOUT_MOVEMENTS (Junction mapping movements in a specific workout)
-CREATE TABLE public.workout_movements (
+-- 3.6 WORKOUT_MOVEMENTS
+CREATE TABLE IF NOT EXISTS public.workout_movements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workout_id UUID NOT NULL REFERENCES public.workouts(id) ON DELETE CASCADE,
   movement_id UUID NOT NULL REFERENCES public.movements(id) ON DELETE CASCADE,
@@ -101,21 +139,21 @@ CREATE TABLE public.workout_movements (
   CONSTRAINT unique_workout_movement_order UNIQUE(workout_id, movement_id, order_index)
 );
 
--- 3.6 WORKOUT_RESULTS (Athlete Performance Logs)
-CREATE TABLE public.workout_results (
+-- 3.7 WORKOUT_RESULTS
+CREATE TABLE IF NOT EXISTS public.workout_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workout_id UUID NOT NULL REFERENCES public.workouts(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  score_display TEXT NOT NULL, -- Human readable score e.g. "12:45"
-  score_numeric NUMERIC(10,2) NOT NULL, -- Standardized number for leaderboard sorting
-  rx_type rx_type NOT NULL DEFAULT 'rx',
+  score_display TEXT NOT NULL,
+  score_numeric NUMERIC(10,2) NOT NULL DEFAULT 0,
+  rx_type public.rx_type NOT NULL DEFAULT 'rx'::public.rx_type,
   notes TEXT DEFAULT '',
   logged_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT unique_user_workout_log UNIQUE(workout_id, user_id)
 );
 
--- 3.7 WORKOUT_RESULT_MOVEMENTS (Granular movement scores logged per result)
-CREATE TABLE public.workout_result_movements (
+-- 3.8 WORKOUT_RESULT_MOVEMENTS
+CREATE TABLE IF NOT EXISTS public.workout_result_movements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   result_id UUID NOT NULL REFERENCES public.workout_results(id) ON DELETE CASCADE,
   movement_id UUID NOT NULL REFERENCES public.movements(id) ON DELETE CASCADE,
@@ -126,8 +164,8 @@ CREATE TABLE public.workout_result_movements (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 3.8 FIST_BUMPS (Social Interaction / High Fives on Workout Results)
-CREATE TABLE public.fist_bumps (
+-- 3.9 FIST_BUMPS
+CREATE TABLE IF NOT EXISTS public.fist_bumps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   result_id UUID NOT NULL REFERENCES public.workout_results(id) ON DELETE CASCADE,
   giver_user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -136,40 +174,104 @@ CREATE TABLE public.fist_bumps (
   CONSTRAINT unique_user_result_fist_bump UNIQUE(result_id, giver_user_id)
 );
 
--- ============================================================================
--- 4. HIGHLY OPTIMIZED INDEXES FOR MOVEMENT HISTORY & CALENDAR LOOKUPS
--- ============================================================================
-
--- Fast Workout lookup by Track & Scheduled Date
-CREATE INDEX idx_workouts_track_date ON public.workouts(track_id, scheduled_date);
-CREATE INDEX idx_workouts_status_date ON public.workouts(status, scheduled_date DESC);
-
--- Fast Athlete Workout Log lookups
-CREATE INDEX idx_workout_results_user ON public.workout_results(user_id, logged_at DESC);
-CREATE INDEX idx_workout_results_workout ON public.workout_results(workout_id, score_numeric ASC);
-
--- Fist Bump Lookups
-CREATE INDEX idx_fist_bumps_result ON public.fist_bumps(result_id);
-CREATE INDEX idx_fist_bumps_receiver ON public.fist_bumps(receiver_user_id, created_at DESC);
-
--- CRITICAL INDEX FOR MOVEMENT HISTORY QUERY
--- Allows instant JOIN filtering on specific athlete + specific movement + chronological ordering
-CREATE INDEX idx_result_movements_lookup 
-ON public.workout_result_movements(movement_id, result_id);
-
-CREATE INDEX idx_workout_movements_lookup 
-ON public.workout_movements(movement_id, workout_id);
-
--- JSONB GIN Indexes for fast JSON queries if needed
-CREATE INDEX idx_profiles_barbell_prs ON public.profiles USING GIN (barbell_prs);
-CREATE INDEX idx_profiles_benchmark_prs ON public.profiles USING GIN (benchmark_prs);
+-- 3.10 COMPATIBILITY VIEWS
+CREATE OR REPLACE VIEW public.logged_results AS SELECT * FROM public.workout_results;
+CREATE OR REPLACE VIEW public.gym_benchmarks AS SELECT * FROM public.benchmarks;
 
 -- ============================================================================
--- 5. ROW LEVEL SECURITY (RLS) POLICIES
+-- 4. INDEXES
 -- ============================================================================
+CREATE INDEX IF NOT EXISTS idx_workouts_track_date ON public.workouts(track_id, scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_workouts_status_date ON public.workouts(status, scheduled_date DESC);
+CREATE INDEX IF NOT EXISTS idx_workout_results_user ON public.workout_results(user_id, logged_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workout_results_workout ON public.workout_results(workout_id, score_numeric ASC);
+CREATE INDEX IF NOT EXISTS idx_fist_bumps_result ON public.fist_bumps(result_id);
+CREATE INDEX IF NOT EXISTS idx_fist_bumps_receiver ON public.fist_bumps(receiver_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_result_movements_lookup ON public.workout_result_movements(movement_id, result_id);
+CREATE INDEX IF NOT EXISTS idx_workout_movements_lookup ON public.workout_movements(movement_id, workout_id);
 
+-- ============================================================================
+-- 5. AUTOMATED AUTH TRIGGER FOR NEW SIGNUPS
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_first_name TEXT;
+  v_last_name TEXT;
+  v_full_name TEXT;
+  v_role public.user_role;
+BEGIN
+  v_first_name := NULLIF(TRIM(new.raw_user_meta_data->>'first_name'), '');
+  v_last_name  := NULLIF(TRIM(new.raw_user_meta_data->>'last_name'), '');
+
+  IF new.raw_user_meta_data->>'full_name' IS NOT NULL AND TRIM(new.raw_user_meta_data->>'full_name') <> '' THEN
+    v_full_name := TRIM(new.raw_user_meta_data->>'full_name');
+  ELSIF v_first_name IS NOT NULL OR v_last_name IS NOT NULL THEN
+    v_full_name := TRIM(CONCAT(COALESCE(v_first_name, ''), ' ', COALESCE(v_last_name, '')));
+  ELSE
+    v_full_name := split_part(new.email, '@', 1);
+  END IF;
+
+  BEGIN
+    v_role := (new.raw_user_meta_data->>'role')::public.user_role;
+  EXCEPTION WHEN OTHERS THEN
+    v_role := 'member'::public.user_role;
+  END;
+
+  IF v_role IS NULL THEN
+    v_role := 'member'::public.user_role;
+  END IF;
+
+  INSERT INTO public.profiles (
+    id,
+    email,
+    first_name,
+    last_name,
+    full_name,
+    role,
+    is_public,
+    benchmark_prs,
+    barbell_prs,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    new.id,
+    new.email,
+    v_first_name,
+    v_last_name,
+    v_full_name,
+    v_role,
+    true,
+    '{}'::jsonb,
+    '{}'::jsonb,
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    first_name = COALESCE(EXCLUDED.first_name, public.profiles.first_name),
+    last_name = COALESCE(EXCLUDED.last_name, public.profiles.last_name),
+    full_name = EXCLUDED.full_name,
+    updated_at = NOW();
+
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ============================================================================
+-- 6. ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.track_parsing_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.benchmarks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workout_movements ENABLE ROW LEVEL SECURITY;
@@ -177,180 +279,108 @@ ALTER TABLE public.workout_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workout_result_movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fist_bumps ENABLE ROW LEVEL SECURITY;
 
--- Helper Function to check user role from JWT / profiles
 CREATE OR REPLACE FUNCTION public.get_user_role()
-RETURNS user_role AS $$
+RETURNS public.user_role AS $$
   SELECT role FROM public.profiles WHERE id = auth.uid();
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
--- 5.1 PROFILES POLICIES
-CREATE POLICY "Public profiles are viewable by authenticated users" 
-  ON public.profiles FOR SELECT USING (auth.role() = 'authenticated');
+-- Profiles Policies
+DROP POLICY IF EXISTS "Profiles viewable by authenticated users" ON public.profiles;
+CREATE POLICY "Profiles viewable by authenticated users" ON public.profiles FOR SELECT USING (auth.role() = 'authenticated');
 
-CREATE POLICY "Users can update their own profile" 
-  ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Admins can manage all profiles" 
-  ON public.profiles FOR ALL USING (public.get_user_role() = 'admin');
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- 5.2 TRACKS POLICIES
-CREATE POLICY "Members can view non-hidden, non-planning tracks" 
-  ON public.tracks FOR SELECT USING (
-    (is_hidden = false AND is_planning = false) 
-    OR public.get_user_role() IN ('coach', 'admin')
-  );
+DROP POLICY IF EXISTS "Admins can manage all profiles" ON public.profiles;
+CREATE POLICY "Admins can manage all profiles" ON public.profiles FOR ALL USING (public.get_user_role() = 'admin');
 
-CREATE POLICY "Coaches and Admins can create and edit tracks" 
-  ON public.tracks FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
+-- Tracks Policies
+DROP POLICY IF EXISTS "Members view non-hidden non-planning tracks" ON public.tracks;
+CREATE POLICY "Members view non-hidden non-planning tracks" ON public.tracks FOR SELECT USING (
+  (is_hidden = false AND is_planning = false) OR public.get_user_role() IN ('coach', 'admin')
+);
 
--- 5.3 MOVEMENTS POLICIES
-CREATE POLICY "Everyone can read movements" 
-  ON public.movements FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Coaches and Admins manage tracks" ON public.tracks;
+CREATE POLICY "Coaches and Admins manage tracks" ON public.tracks FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
 
-CREATE POLICY "Coaches and Admins can manage movements" 
-  ON public.movements FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
+-- Track Parsing Rules Policies
+DROP POLICY IF EXISTS "Coaches and Admins manage track parsing rules" ON public.track_parsing_rules;
+CREATE POLICY "Coaches and Admins manage track parsing rules" ON public.track_parsing_rules FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
 
--- 5.4 WORKOUTS POLICIES
--- Athletes only see published workouts on non-hidden tracks
-CREATE POLICY "Athletes can view published workouts" 
-  ON public.workouts FOR SELECT USING (
-    status = 'published' OR public.get_user_role() IN ('coach', 'admin')
-  );
+-- Movements & Benchmarks Policies
+DROP POLICY IF EXISTS "Everyone can read movements" ON public.movements;
+CREATE POLICY "Everyone can read movements" ON public.movements FOR SELECT USING (true);
 
-CREATE POLICY "Coaches and Admins can insert/update/delete workouts" 
-  ON public.workouts FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
+DROP POLICY IF EXISTS "Everyone can read benchmarks" ON public.benchmarks;
+CREATE POLICY "Everyone can read benchmarks" ON public.benchmarks FOR SELECT USING (true);
 
--- 5.5 WORKOUT MOVEMENTS POLICIES
-CREATE POLICY "Anyone can read workout movements" 
-  ON public.workout_movements FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Coaches and Admins manage movements" ON public.movements;
+CREATE POLICY "Coaches and Admins manage movements" ON public.movements FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
 
-CREATE POLICY "Coaches/Admins manage workout movements" 
-  ON public.workout_movements FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
+DROP POLICY IF EXISTS "Coaches and Admins manage benchmarks" ON public.benchmarks;
+CREATE POLICY "Coaches and Admins manage benchmarks" ON public.benchmarks FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
 
--- 5.6 WORKOUT RESULTS POLICIES (Respects Privacy Settings)
-CREATE POLICY "Members read public athlete results for daily results" 
-  ON public.workout_results FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p
-      WHERE p.id = workout_results.user_id AND (p.is_public = true OR p.id = auth.uid())
-    )
-    OR public.get_user_role() IN ('coach', 'admin')
-  );
+-- Workouts & Workout Movements Policies
+DROP POLICY IF EXISTS "Athletes view published workouts" ON public.workouts;
+CREATE POLICY "Athletes view published workouts" ON public.workouts FOR SELECT USING (
+  status = 'published' OR public.get_user_role() IN ('coach', 'admin')
+);
 
-CREATE POLICY "Users can insert/update their own workout results" 
-  ON public.workout_results FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Coaches and Admins manage workouts" ON public.workouts;
+CREATE POLICY "Coaches and Admins manage workouts" ON public.workouts FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
 
-CREATE POLICY "Coaches and Admins can manage all results" 
-  ON public.workout_results FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
+DROP POLICY IF EXISTS "Anyone can read workout movements" ON public.workout_movements;
+CREATE POLICY "Anyone can read workout movements" ON public.workout_movements FOR SELECT USING (true);
 
--- 5.7 WORKOUT RESULT MOVEMENTS POLICIES
-CREATE POLICY "Anyone can read workout result movements" 
-  ON public.workout_result_movements FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Coaches and Admins manage workout movements" ON public.workout_movements;
+CREATE POLICY "Coaches and Admins manage workout movements" ON public.workout_movements FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
 
-CREATE POLICY "Users insert/update their own result movements" 
-  ON public.workout_result_movements FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.workout_results r 
-      WHERE r.id = workout_result_movements.result_id AND r.user_id = auth.uid()
-    )
-  );
+-- Workout Results Policies
+DROP POLICY IF EXISTS "Members read public athlete results" ON public.workout_results;
+CREATE POLICY "Members read public athlete results" ON public.workout_results FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = workout_results.user_id AND (p.is_public = true OR p.id = auth.uid())
+  ) OR public.get_user_role() IN ('coach', 'admin')
+);
 
--- 5.8 FIST BUMPS POLICIES
-CREATE POLICY "Authenticated users can read fist bumps" 
-  ON public.fist_bumps FOR SELECT USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Users manage their own results" ON public.workout_results;
+CREATE POLICY "Users manage their own results" ON public.workout_results FOR ALL USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can give or remove their own fist bumps" 
-  ON public.fist_bumps FOR ALL USING (auth.uid() = giver_user_id) WITH CHECK (auth.uid() = giver_user_id);
+DROP POLICY IF EXISTS "Coaches and Admins manage all results" ON public.workout_results;
+CREATE POLICY "Coaches and Admins manage all results" ON public.workout_results FOR ALL USING (public.get_user_role() IN ('coach', 'admin'));
 
--- ============================================================================
--- 6. AUTOMATED TRIGGER ON NEW USER SIGNUP (Supabase Auth Hook)
--- ============================================================================
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role)
-  VALUES (
-    new.id,
-    new.email,
-    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    COALESCE((new.raw_user_meta_data->>'role')::user_role, 'member')
-  );
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Workout Result Movements Policies
+DROP POLICY IF EXISTS "Anyone read workout result movements" ON public.workout_result_movements;
+CREATE POLICY "Anyone read workout result movements" ON public.workout_result_movements FOR SELECT USING (true);
 
-CREATE OR REPLACE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+DROP POLICY IF EXISTS "Users manage their own result movements" ON public.workout_result_movements;
+CREATE POLICY "Users manage their own result movements" ON public.workout_result_movements FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.workout_results r 
+    WHERE r.id = workout_result_movements.result_id AND r.user_id = auth.uid()
+  )
+);
+
+-- Fist Bumps Policies
+DROP POLICY IF EXISTS "Authenticated users read fist bumps" ON public.fist_bumps;
+CREATE POLICY "Authenticated users read fist bumps" ON public.fist_bumps FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Users manage their own fist bumps" ON public.fist_bumps;
+CREATE POLICY "Users manage their own fist bumps" ON public.fist_bumps FOR ALL USING (auth.uid() = giver_user_id) WITH CHECK (auth.uid() = giver_user_id);
 
 -- ============================================================================
--- 7. MOVEMENT HISTORY RPC STORED PROCEDURE (LATERAL JOIN QUERY ENGINE)
+-- 7. INITIAL SEED DATA (DEFAULT TRACKS)
 -- ============================================================================
--- This function receives a user_id and array of movement_ids (from today's workout)
--- and returns top past performance logs per movement with max efficiency.
-
-CREATE OR REPLACE FUNCTION public.get_user_movement_history(
-  p_user_id UUID,
-  p_movement_ids UUID[],
-  p_limit_per_movement INT DEFAULT 5
-)
-RETURNS TABLE (
-  movement_id UUID,
-  movement_name TEXT,
-  movement_category movement_category,
-  logged_at TIMESTAMPTZ,
-  workout_title TEXT,
-  workout_date DATE,
-  track_name TEXT,
-  rx_type rx_type,
-  weight_used_lbs NUMERIC,
-  reps_completed INT,
-  time_seconds INT,
-  score_display TEXT,
-  workout_result_id UUID
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    m.id AS movement_id,
-    m.name AS movement_name,
-    m.category AS movement_category,
-    res.logged_at,
-    w.title AS workout_title,
-    w.scheduled_date AS workout_date,
-    t.name AS track_name,
-    res.rx_type,
-    rm.weight_used_lbs,
-    rm.reps_completed,
-    rm.time_seconds,
-    res.score_display,
-    res.id AS workout_result_id
-  FROM unnest(p_movement_ids) AS target_mov_id
-  JOIN public.movements m ON m.id = target_mov_id
-  CROSS JOIN LATERAL (
-    SELECT 
-      r.id,
-      r.workout_id,
-      r.score_display,
-      r.rx_type,
-      r.logged_at,
-      w_sub.title,
-      w_sub.scheduled_date,
-      w_sub.track_id,
-      rm_sub.weight_used_lbs,
-      rm_sub.reps_completed,
-      rm_sub.time_seconds
-    FROM public.workout_results r
-    JOIN public.workouts w_sub ON w_sub.id = r.workout_id
-    JOIN public.workout_result_movements rm_sub ON rm_sub.result_id = r.id
-    WHERE r.user_id = p_user_id
-      AND rm_sub.movement_id = target_mov_id
-    ORDER BY r.logged_at DESC
-    LIMIT p_limit_per_movement
-  ) res
-  JOIN public.workouts w ON w.id = res.workout_id
-  JOIN public.tracks t ON t.id = w.track_id
-  ORDER BY m.name ASC, res.logged_at DESC;
-END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+INSERT INTO public.tracks (id, name, slug, description, color, is_hidden, is_planning, display_order)
+VALUES 
+  ('11111111-1111-1111-1111-111111111111', 'PRVN Daily Workout', 'prvn-daily', 'Main daily affiliate programming track', '#3B82F6', false, false, 1),
+  ('22222222-2222-2222-2222-222222222222', 'Turf Circuit', 'turf-circuit', 'High-intensity functional conditioning', '#10B981', false, false, 2),
+  ('33333333-3333-3333-3333-333333333333', 'Engine & Conditioning', 'engine-conditioning', 'Aerobic capacity & monostructural endurance', '#F59E0B', false, false, 3),
+  ('44444444-4444-4444-4444-444444444444', 'Coach Planning Track', 'coach-planning', 'Internal track for future cycle drafting', '#8B5CF6', true, true, 4)
+ON CONFLICT (slug) DO NOTHING;
 `;
+
