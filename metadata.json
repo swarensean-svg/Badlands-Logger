@@ -1,0 +1,6 @@
+{
+  "name": "Badlands Logger",
+  "description": "Full-stack Gym Management and Workout Tracking platform with Badlands Logger branding, Supabase schema design, movement history query engine, dynamic track management, role-based views (Member, Coach, Admin), and PR tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
