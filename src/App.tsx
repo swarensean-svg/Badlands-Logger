@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createClient } from './lib/supabaseClient';
 import {
   AppTab,
   ViewRole,
@@ -39,7 +40,7 @@ import { LoginPage } from './components/auth/LoginPage';
 import { SignupPage } from './components/auth/SignupPage';
 import { ForgotPasswordPage } from './components/auth/ForgotPasswordPage';
 import { signOutAction } from './actions/auth';
-import { Layers, Dumbbell, Shield, User, Trophy, Database, Sparkles, UserCheck, ShieldCheck, Calendar, LogIn, UserPlus } from 'lucide-react';
+import { Layers, Dumbbell, Shield, User, Trophy, Database, Sparkles, UserCheck, ShieldCheck, Calendar, LogIn, UserPlus, AlertTriangle } from 'lucide-react';
 
 export default function App() {
   // Navigation, Auth & Role State
@@ -47,9 +48,14 @@ export default function App() {
   const [activeRole, setActiveRole] = useState<ViewRole>('member');
   const [subSection, setSubSection] = useState<'workouts' | 'prs' | 'programmer' | 'tracks' | 'roles'>('workouts');
 
-  // Auth Routing State: 'login' | 'signup' | 'forgot-password' | 'dashboard'
-  const [authRoute, setAuthRoute] = useState<'login' | 'signup' | 'forgot-password' | 'dashboard'>('dashboard');
-  const [currentUser, setCurrentUser] = useState<Profile | null>(INITIAL_PROFILES[0]);
+  // Auth Routing State: Default to 'login' for live production auth
+  const [authRoute, setAuthRoute] = useState<'login' | 'signup' | 'forgot-password' | 'dashboard'>('login');
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+
+  // Check if Supabase env vars exist
+  const isSupabaseConfigured = !!(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
 
   // Database Models State
   const [tracks, setTracks] = useState<Track[]>(INITIAL_TRACKS);
@@ -71,6 +77,85 @@ export default function App() {
 
   // Active user profile based on auth or role
   const activeProfile = currentUser || profiles.find((p) => p.role === activeRole) || profiles[0];
+
+  // Initialize Live Supabase Session & Live Sync
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    try {
+      const supabase = createClient();
+
+      // Check current session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+            .then(({ data: profile }) => {
+              if (profile) {
+                setCurrentUser(profile as Profile);
+                setActiveRole(profile.role);
+                setAuthRoute('dashboard');
+              }
+            });
+        }
+      });
+
+      // Fetch live data from Supabase tables
+      const fetchLiveData = async () => {
+        const [
+          { data: dbTracks },
+          { data: dbWorkouts },
+          { data: dbProfiles },
+          { data: dbMovements },
+          { data: dbResults },
+        ] = await Promise.all([
+          supabase.from('tracks').select('*'),
+          supabase.from('workouts').select('*'),
+          supabase.from('profiles').select('*'),
+          supabase.from('movements').select('*'),
+          supabase.from('workout_results').select('*'),
+        ]);
+
+        if (dbTracks && dbTracks.length > 0) setTracks(dbTracks);
+        if (dbWorkouts && dbWorkouts.length > 0) setWorkouts(dbWorkouts);
+        if (dbProfiles && dbProfiles.length > 0) setProfiles(dbProfiles);
+        if (dbMovements && dbMovements.length > 0) setMovements(dbMovements);
+        if (dbResults && dbResults.length > 0) setWorkoutResults(dbResults);
+      };
+
+      fetchLiveData().catch((err) => console.error('Supabase live data load error:', err));
+
+      // Auth listener
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!session) {
+          setCurrentUser(null);
+          setAuthRoute('login');
+        } else if (session.user) {
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+            .then(({ data: profile }) => {
+              if (profile) {
+                setCurrentUser(profile as Profile);
+                setActiveRole(profile.role);
+                setAuthRoute('dashboard');
+              }
+            });
+        }
+      });
+
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    } catch (e) {
+      console.warn('Supabase initialization warning:', e);
+    }
+  }, [isSupabaseConfigured]);
 
   // Auth Action Handlers
   const handleAuthSuccess = (userProfile: Profile) => {
@@ -282,6 +367,20 @@ export default function App() {
 
       {/* Main Body Workspace */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5 bg-[#0c0c0e]">
+        {!isSupabaseConfigured && (
+          <div className="bg-amber-950/40 border border-amber-800/60 rounded-lg p-4 flex items-start space-x-3 text-amber-200 text-xs font-sans shadow-lg">
+            <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-amber-300 font-mono text-xs uppercase tracking-wide">
+                Live Supabase Connection Required
+              </p>
+              <p className="mt-1 text-zinc-300 leading-relaxed">
+                To connect this live application directly to your Supabase project, add <code className="bg-zinc-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">NEXT_PUBLIC_SUPABASE_URL</code> and <code className="bg-zinc-900 px-1.5 py-0.5 rounded text-amber-300 font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to your environment variables.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Render Auth View Pages (/login, /signup, /forgot-password) when active */}
         {authRoute === 'login' && (
           <LoginPage

@@ -65,14 +65,14 @@ export async function signUpAction({
       },
     });
 
-    if (authError) {
+    if (authError || !authData?.user?.id) {
       return {
         success: false,
-        error: authError.message || 'Signup failed. Please try again.',
+        error: authError?.message || 'Signup failed. Unable to create user session.',
       };
     }
 
-    const userId = authData?.user?.id || `usr-sim-${Date.now()}`;
+    const userId = authData.user.id;
 
     // 3. Crucial Database Linking: Insert profile record into public.profiles
     const profilePayload = {
@@ -94,7 +94,10 @@ export async function signUpAction({
       .single();
 
     if (profileError) {
-      console.warn('Supabase profile insertion error (fallback to local mock):', profileError.message);
+      return {
+        success: false,
+        error: `Account created in Auth, but profile setup failed in database: ${profileError.message}`,
+      };
     }
 
     const finalProfile = createdProfile || profilePayload;

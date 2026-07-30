@@ -35,7 +35,6 @@ export async function elevateMemberToCoach(targetUserId: string): Promise<Elevat
     let requesterId = user?.id;
 
     if (authError || !requesterId) {
-      // Return structured response or simulate for demo
       return {
         success: false,
         error: 'Authentication required. You must be signed in as an Admin to perform this action.',
