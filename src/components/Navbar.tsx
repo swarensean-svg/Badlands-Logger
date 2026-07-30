@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Dumbbell className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Simulator</span>
+              <span>Dashboard</span>
             </button>
 
             <button

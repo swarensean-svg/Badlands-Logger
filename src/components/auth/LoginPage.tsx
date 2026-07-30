@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { loginAction } from '../../actions/auth';
-import { Dumbbell, Lock, Mail, ArrowRight, Loader2, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Dumbbell, Lock, Mail, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Profile } from '../../types';
 
 interface LoginPageProps {
@@ -58,17 +58,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Demo user quick login helper
-  const handleQuickLogin = (demoProfile: Profile) => {
-    setEmail(demoProfile.email);
-    setPassword('password123');
-    setErrorMessage(null);
-    setSuccessMessage(`Simulating sign in as ${demoProfile.full_name}...`);
-    setTimeout(() => {
-      onLoginSuccess(demoProfile);
-    }, 400);
   };
 
   return (
@@ -166,32 +155,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             )}
           </button>
         </form>
-
-        {/* Quick Demo Logins Helper */}
-        <div className="border-t border-zinc-800 pt-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-amber-400" />
-              Quick Test Accounts
-            </span>
-            <span className="text-[10px] text-zinc-500 font-mono">1-Click Sign In</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 font-mono text-[11px]">
-            {profiles.slice(0, 3).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleQuickLogin(p)}
-                className="bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 p-2 rounded text-left transition flex flex-col justify-between group"
-              >
-                <span className="font-bold text-zinc-200 group-hover:text-indigo-400 truncate">
-                  {p.full_name.split(' ')[0]}
-                </span>
-                <span className="text-[9px] uppercase text-zinc-500 font-semibold">{p.role}</span>
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Footer Navigation link */}
         <div className="text-center pt-2 font-sans text-xs text-zinc-400 border-t border-zinc-800">

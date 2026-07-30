@@ -308,7 +308,7 @@ export default function App() {
         {/* Render Main Athlete Dashboard when in 'dashboard' route */}
         {authRoute === 'dashboard' && (
           <>
-            {/* Main Application Simulator Tab */}
+            {/* Main Application Dashboard Tab */}
             {activeTab === 'app' && (
               <div className="space-y-5">
                 {/* Secondary Navigation Bar (Workouts / PRs / Tracks) */}

@@ -131,7 +131,7 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
           <div className="p-3 bg-amber-950/30 border border-amber-800/40 rounded flex items-start space-x-2 text-amber-300">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <div className="text-[11px] font-sans">
-              <strong className="font-bold font-mono">Admin Authorization Required:</strong> Switch your simulator role in the top header to <strong className="text-white">"Admin View"</strong> to unlock role elevation privileges.
+              <strong className="font-bold font-mono">Admin Authorization Required:</strong> Switch your active role in the header to <strong className="text-white">"ADMIN"</strong> to unlock role elevation privileges.
             </div>
           </div>
         ) : (

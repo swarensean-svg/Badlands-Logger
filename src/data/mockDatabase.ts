@@ -1,5 +1,5 @@
 /**
- * In-Memory Mock Database Engine & Query Simulator for Live Preview
+ * Initial Seed Data & Movement Catalog Engine
  */
 
 import { Profile, Track, Movement, Workout, WorkoutMovement, WorkoutResult, WorkoutResultMovement, MovementHistoryEntry, UserRole, GymBenchmark, FistBump } from '../types';
