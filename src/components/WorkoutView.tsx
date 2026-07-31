@@ -430,7 +430,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
                       >
                         <span className="text-zinc-400">{log.workout_date}</span>
                         <span className="text-emerald-400 font-bold">
-                          {log.weight_used_lbs ? `${log.weight_used_lbs} lbs` : log.score_display} ({log.rx_type.toUpperCase()})
+                          {log.weight_used_lbs ? `${log.weight_used_lbs} lbs` : log.score_display} ({(log?.rx_type || 'rx').toUpperCase()})
                         </span>
                         <span className="text-zinc-500 italic truncate">
                           {log.workout_title}

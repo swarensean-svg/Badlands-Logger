@@ -31,28 +31,35 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
   const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual');
   const [isEditing, setIsEditing] = useState(false);
 
+  // Safe Profile Properties
+  const fullName = activeProfile?.full_name || activeProfile?.email || 'Athlete';
+  const role = activeProfile?.role || 'member';
+  const email = activeProfile?.email || '';
+  const profileId = activeProfile?.id || '';
+
   // Privacy state (controlled by profile)
-  const isPublic = activeProfile.is_public ?? true;
+  const isPublic = activeProfile?.is_public ?? true;
 
   // Form states for Barbell PRs
-  const [backSquat, setBackSquat] = useState(activeProfile.barbell_prs?.back_squat?.weight_lbs || 345);
-  const [deadlift, setDeadlift] = useState(activeProfile.barbell_prs?.deadlift?.weight_lbs || 455);
-  const [cleanAndJerk, setCleanAndJerk] = useState(activeProfile.barbell_prs?.clean_and_jerk?.weight_lbs || 265);
-  const [snatch, setSnatch] = useState(activeProfile.barbell_prs?.snatch?.weight_lbs || 215);
+  const [backSquat, setBackSquat] = useState(activeProfile?.barbell_prs?.back_squat?.weight_lbs || 345);
+  const [deadlift, setDeadlift] = useState(activeProfile?.barbell_prs?.deadlift?.weight_lbs || 455);
+  const [cleanAndJerk, setCleanAndJerk] = useState(activeProfile?.barbell_prs?.clean_and_jerk?.weight_lbs || 265);
+  const [snatch, setSnatch] = useState(activeProfile?.barbell_prs?.snatch?.weight_lbs || 215);
 
   // Form states for Benchmark PRs (Fran time in seconds)
-  const [franTime, setFranTime] = useState(activeProfile.benchmark_prs?.fran?.time_seconds || 165);
-  const [graceTime, setGraceTime] = useState(activeProfile.benchmark_prs?.grace?.time_seconds || 110);
-  const [murphTime, setMurphTime] = useState(activeProfile.benchmark_prs?.murph?.time_seconds || 2145);
+  const [franTime, setFranTime] = useState(activeProfile?.benchmark_prs?.fran?.time_seconds || 165);
+  const [graceTime, setGraceTime] = useState(activeProfile?.benchmark_prs?.grace?.time_seconds || 110);
+  const [murphTime, setMurphTime] = useState(activeProfile?.benchmark_prs?.murph?.time_seconds || 2145);
 
   // Filter fist bumps received by this profile
-  const receivedFistBumps = fistBumps.filter((fb) => fb.receiver_user_id === activeProfile.id);
+  const receivedFistBumps = (fistBumps || []).filter((fb) => fb.receiver_user_id === profileId);
 
   const handleSave = () => {
+    if (!profileId) return;
     const today = new Date().toISOString().split('T')[0];
 
     const updatedBarbell: BarbellPRs = {
-      ...activeProfile.barbell_prs,
+      ...activeProfile?.barbell_prs,
       back_squat: { weight_lbs: Number(backSquat), date: today, reps: 1 },
       deadlift: { weight_lbs: Number(deadlift), date: today, reps: 1 },
       clean_and_jerk: { weight_lbs: Number(cleanAndJerk), date: today, reps: 1 },
@@ -60,13 +67,13 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
     };
 
     const updatedBenchmark: BenchmarkPRs = {
-      ...activeProfile.benchmark_prs,
+      ...activeProfile?.benchmark_prs,
       fran: { time_seconds: Number(franTime), date: today, rx_type: 'rx' },
       grace: { time_seconds: Number(graceTime), date: today, rx_type: 'rx' },
       murph: { time_seconds: Number(murphTime), date: today, rx_type: 'rx' },
     };
 
-    onUpdatePRs(activeProfile.id, updatedBarbell, updatedBenchmark);
+    onUpdatePRs(profileId, updatedBarbell, updatedBenchmark);
     setIsEditing(false);
   };
 
@@ -83,13 +90,13 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded bg-indigo-600 flex items-center justify-center font-bold text-white text-base">
-            {activeProfile.full_name.substring(0, 2).toUpperCase()}
+            {(fullName || 'AT').substring(0, 2).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h2 className="text-base font-bold text-white uppercase italic">{activeProfile.full_name}</h2>
+              <h2 className="text-base font-bold text-white uppercase italic">{fullName}</h2>
               <span className="text-[10px] uppercase font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
-                {activeProfile.role}
+                {role}
               </span>
               <span
                 className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border flex items-center space-x-1 ${
@@ -102,7 +109,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                 <span>{isPublic ? 'Public Results' : 'Private Results'}</span>
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400 font-mono">{activeProfile.email}</p>
+            <p className="text-[11px] text-zinc-400 font-mono">{email}</p>
           </div>
         </div>
 
@@ -158,7 +165,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
           </span>
           <button
             type="button"
-            onClick={() => onTogglePrivacy(activeProfile.id, !isPublic)}
+            onClick={() => profileId && onTogglePrivacy(profileId, !isPublic)}
             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
               isPublic ? 'bg-indigo-600' : 'bg-zinc-700'
             }`}
@@ -179,7 +186,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
 
       {/* SugarWOD CSV History Importer Component */}
       <SugarWODImporter
-        userId={activeProfile.id}
+        userId={profileId}
         onImportSuccess={(newResults) => {
           if (onImportResults) {
             onImportResults(newResults);
@@ -193,7 +200,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
             <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">PostgreSQL JSONB Representation:</span>
           </div>
           <pre className="text-indigo-300 text-xs overflow-x-auto leading-relaxed">
-            <code>{JSON.stringify({ barbell_prs: activeProfile.barbell_prs, benchmark_prs: activeProfile.benchmark_prs }, null, 2)}</code>
+            <code>{JSON.stringify({ barbell_prs: activeProfile?.barbell_prs, benchmark_prs: activeProfile?.benchmark_prs }, null, 2)}</code>
           </pre>
         </div>
       ) : (
@@ -217,7 +224,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                   />
                 ) : (
                   <span className="font-bold text-amber-400 text-xs font-mono">
-                    {activeProfile.barbell_prs?.back_squat?.weight_lbs || 0} lbs
+                    {activeProfile?.barbell_prs?.back_squat?.weight_lbs || 0} lbs
                   </span>
                 )}
               </div>
@@ -233,7 +240,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                   />
                 ) : (
                   <span className="font-bold text-amber-400 text-xs font-mono">
-                    {activeProfile.barbell_prs?.deadlift?.weight_lbs || 0} lbs
+                    {activeProfile?.barbell_prs?.deadlift?.weight_lbs || 0} lbs
                   </span>
                 )}
               </div>
@@ -249,7 +256,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                   />
                 ) : (
                   <span className="font-bold text-amber-400 text-xs font-mono">
-                    {activeProfile.barbell_prs?.clean_and_jerk?.weight_lbs || 0} lbs
+                    {activeProfile?.barbell_prs?.clean_and_jerk?.weight_lbs || 0} lbs
                   </span>
                 )}
               </div>
@@ -265,7 +272,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                   />
                 ) : (
                   <span className="font-bold text-amber-400 text-xs font-mono">
-                    {activeProfile.barbell_prs?.snatch?.weight_lbs || 0} lbs
+                    {activeProfile?.barbell_prs?.snatch?.weight_lbs || 0} lbs
                   </span>
                 )}
               </div>
@@ -297,7 +304,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                   </div>
                 ) : (
                   <span className="font-bold text-indigo-300 text-xs font-mono">
-                    {formatSeconds(activeProfile.benchmark_prs?.fran?.time_seconds)}
+                    {formatSeconds(activeProfile?.benchmark_prs?.fran?.time_seconds)}
                   </span>
                 )}
               </div>
@@ -319,7 +326,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                   </div>
                 ) : (
                   <span className="font-bold text-indigo-300 text-xs font-mono">
-                    {formatSeconds(activeProfile.benchmark_prs?.grace?.time_seconds)}
+                    {formatSeconds(activeProfile?.benchmark_prs?.grace?.time_seconds)}
                   </span>
                 )}
               </div>
@@ -341,7 +348,7 @@ export const ProfilePRsView: React.FC<ProfilePRsViewProps> = ({
                   </div>
                 ) : (
                   <span className="font-bold text-indigo-300 text-xs font-mono">
-                    {formatSeconds(activeProfile.benchmark_prs?.murph?.time_seconds)}
+                    {formatSeconds(activeProfile?.benchmark_prs?.murph?.time_seconds)}
                   </span>
                 )}
               </div>

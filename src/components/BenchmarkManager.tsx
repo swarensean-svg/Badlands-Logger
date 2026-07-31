@@ -340,7 +340,7 @@ export const BenchmarkManager: React.FC<BenchmarkManagerProps> = ({
                     <span>{bm.name}</span>
                   </span>
                   <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${getCategoryBadge(bm.category)}`}>
-                    {bm.category.replace('_', ' ')}
+                    {(bm?.category || '').replace('_', ' ')}
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">{bm.description}</p>

@@ -204,7 +204,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
         scheduled_date: targetDate,
         title: `Benchmark: ${bm.name}`,
         description: bm.description,
-        athlete_notes: `Official Gym Benchmark (${bm.category.replace('_', ' ')}). Give it 100% effort!`,
+        athlete_notes: `Official Gym Benchmark (${(bm?.category || '').replace('_', ' ')}). Give it 100% effort!`,
         coaches_notes: `🔒 COACH NOTES: Validate full range of motion. Male Rx: ${bm.rx_male || 'Standard'}, Female Rx: ${bm.rx_female || 'Standard'}.`,
         scoring_type: bm.scoring_type,
         status: 'published',
