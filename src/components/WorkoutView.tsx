@@ -89,7 +89,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
   const [selectedDate, setSelectedDate] = useState('2026-07-29');
 
   const handlePrevDay = () => {
-    const parts = selectedDate.split('-');
+    const parts = (selectedDate || '2026-07-29').split('-');
     const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
     date.setDate(date.getDate() - 1);
     const yyyy = date.getFullYear();
@@ -99,7 +99,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
   };
 
   const handleNextDay = () => {
-    const parts = selectedDate.split('-');
+    const parts = (selectedDate || '2026-07-29').split('-');
     const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
     date.setDate(date.getDate() + 1);
     const yyyy = date.getFullYear();
@@ -330,7 +330,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {currentWmRows.map((wm, index) => {
-                      const mov = movements.find((m) => m.id === wm.movement_id);
+                      const mov = (movements || []).find((m) => m.id === wm.movement_id);
                       return (
                         <div
                           key={wm.id}
@@ -408,7 +408,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
                   <History className="h-3.5 w-3.5 text-indigo-400" />
-                  <span>Movement History: {movements.find(m => currentMovementIds.includes(m.id))?.name || 'Today\'s Exercises'}</span>
+                  <span>Movement History: {(movements || []).find(m => currentMovementIds.includes(m.id))?.name || 'Today\'s Exercises'}</span>
                 </h3>
                 <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-indigo-300 font-mono">
                   LATERAL JOIN QUERY
@@ -643,7 +643,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({
                 <div className="space-y-2 bg-zinc-950 p-2.5 rounded border border-zinc-800 font-mono">
                   <span className="text-zinc-400 text-[10px] font-bold uppercase block">Movement Loads (lbs):</span>
                   {currentWmRows.map((wm) => {
-                    const mov = movements.find((m) => m.id === wm.movement_id);
+                    const mov = (movements || []).find((m) => m.id === wm.movement_id);
                     return (
                       <div key={wm.id} className="flex items-center justify-between text-xs">
                         <span className="text-zinc-300">{mov?.name}</span>

@@ -170,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-zinc-300 font-bold truncate max-w-[100px]">
-                    {currentUser?.full_name.split(' ')[0] || 'Athlete'}
+                    {currentUser?.full_name ? currentUser.full_name.split(' ')[0] : 'Athlete'}
                   </span>
                 </div>
                 <button

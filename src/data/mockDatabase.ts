@@ -461,22 +461,27 @@ export function queryUserMovementHistorySimulated(
   movements: Movement[]
 ): MovementHistoryEntry[] {
   const entries: MovementHistoryEntry[] = [];
+  const safeMovements = movements || [];
+  const safeResultMovements = workoutResultMovements || [];
+  const safeWorkoutResults = workoutResults || [];
+  const safeWorkouts = workouts || [];
+  const safeTracks = tracks || [];
 
-  for (const movId of movementIds) {
-    const mov = movements.find((m) => m.id === movId);
+  for (const movId of (movementIds || [])) {
+    const mov = safeMovements.find((m) => m.id === movId);
     if (!mov) continue;
 
     // Find all result movements matching this movement for this user
-    const matchingResultMovements = workoutResultMovements.filter((rm) => rm.movement_id === movId);
+    const matchingResultMovements = safeResultMovements.filter((rm) => rm.movement_id === movId);
 
     for (const rm of matchingResultMovements) {
-      const result = workoutResults.find((r) => r.id === rm.result_id && r.user_id === userId);
+      const result = safeWorkoutResults.find((r) => r.id === rm.result_id && r.user_id === userId);
       if (!result) continue;
 
-      const workout = workouts.find((w) => w.id === result.workout_id);
+      const workout = safeWorkouts.find((w) => w.id === result.workout_id);
       if (!workout) continue;
 
-      const track = tracks.find((t) => t.id === workout.track_id);
+      const track = safeTracks.find((t) => t.id === workout.track_id);
 
       entries.push({
         movement_id: mov.id,

@@ -49,8 +49,8 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerProps> = ({
   const [selectedMovements, setSelectedMovements] = useState<
     { movement_id: string; rx_male?: number; rx_female?: number; reps?: number }[]
   >([
-    { movement_id: movements[0]?.id || '', rx_male: 315, rx_female: 205, reps: 5 },
-    { movement_id: movements[2]?.id || '', reps: 45 },
+    { movement_id: movements?.[0]?.id || '', rx_male: 315, rx_female: 205, reps: 5 },
+    { movement_id: movements?.[2]?.id || '', reps: 45 },
   ]);
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerProps> = ({
   }, [editingWorkout]);
 
   const addMovementRow = () => {
-    if (movements.length > 0) {
+    if (movements && movements.length > 0) {
       setSelectedMovements([
         ...selectedMovements,
         { movement_id: movements[0].id, rx_male: 95, rx_female: 65, reps: 15 },
@@ -276,7 +276,7 @@ export const WorkoutPlanner: React.FC<WorkoutPlannerProps> = ({
                   onChange={(e) => updateMovementRow(index, 'movement_id', e.target.value)}
                   className="bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-white text-xs font-mono min-w-[150px]"
                 >
-                  {movements.map((m) => (
+                  {(movements || []).map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} ({m.category})
                     </option>

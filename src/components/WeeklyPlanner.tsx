@@ -77,8 +77,8 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
   // Helper to calculate 7 days array [Mon, Tue, Wed, Thu, Fri, Sat, Sun] from start date
   const getDaysOfWeek = (startDateStr: string) => {
     const days = [];
-    const parts = startDateStr.split('-');
-    const startDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const parts = (startDateStr || '2026-07-27').split('-');
+    const startDate = new Date(Number(parts[0] || 2026), Number(parts[1] || 7) - 1, Number(parts[2] || 27));
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(startDate);
@@ -106,8 +106,8 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
 
   // Week Shift Handlers
   const handlePrevWeek = () => {
-    const parts = currentWeekStartDate.split('-');
-    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const parts = (currentWeekStartDate || '2026-07-27').split('-');
+    const d = new Date(Number(parts[0] || 2026), Number(parts[1] || 7) - 1, Number(parts[2] || 27));
     d.setDate(d.getDate() - 7);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -116,8 +116,8 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
   };
 
   const handleNextWeek = () => {
-    const parts = currentWeekStartDate.split('-');
-    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const parts = (currentWeekStartDate || '2026-07-27').split('-');
+    const d = new Date(Number(parts[0] || 2026), Number(parts[1] || 7) - 1, Number(parts[2] || 27));
     d.setDate(d.getDate() + 7);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
